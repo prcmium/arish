@@ -66,7 +66,7 @@ int main(){
         cout << "Граф является двудольным." << endl;
         cout << "Максимальное совпадение: " << maxMatching(graph, n, m) << endl;
     } else {
-        cout << "Граф не является двудольным.mojet chto-to icho" << endl;
+        cout << "Граф не является двудольным." << endl;
     }
 
     return 0;
