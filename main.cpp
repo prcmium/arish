@@ -1,73 +1,77 @@
 #include <iostream>
 #include <vector>
-#include <queue>
 
 using namespace std;
 
-bool isBipartite(vector<vector<int>>& graph, int src, vector<int>& colors){
-    queue<int> q;
-    q.push(src);
-    colors[src] = 1; 
+struct Edge{
+    int v; // вершина, куда ведёт ребро
+    int flow; // поток, текущий по ребру
+    int capacity; // пропускная способность ребра
 
-    while (!q.empty()){
-        int u = q.front();
-        q.pop();
+    Edge(int v, int capacity)
+        : v(v), flow(0), capacity(capacity) {}
 
-        for (int v : graph[u]){
-            if (colors[v] == colors[u]) 
-                return false;
-            if (colors[v] == -1){ 
-                colors[v] = 1 - colors[u];
-                q.push(v);
-            }
+    int get_capacity() { // пропускная способность ребра в остаточной сети
+        return capacity - flow;
+    }
+};
+
+const int INF = (int)(1e9) + 666;
+const int N = 666;
+int S, T; // сток и исток
+
+vector<Edge> edges;
+vector<int> graph[N]; // в списке смежности храним не рёбра, и индексы в списке рёбер
+int used[N];
+int timer = 1; // для быстрого зануления used-а
+
+// Будем поддерживать список рёбер в таком состоянии, что для i ребра, (i ^ 1) будет обратным
+void add_edge(int v, int u, int capacity) {
+    graph[v].emplace_back(edges.size()); // номер ребра в списке
+    edges.emplace_back(u, capacity); // прямое ребро
+    graph[u].emplace_back(edges.size()); // номер ребра
+    edges.emplace_back(v, 0); // обратное ребро
+}
+int dfs(int v, int min_capacity) {
+    if (v == T) {
+        // нашли увеличивающий путь, вдоль которого можно пустить min_capacity потока
+        return min_capacity;
+    }
+    used[v] = timer;
+    for (int index : graph[v]) {
+        if (edges[index].get_capacity() == 0) {
+            continue; // ребро отсутсвует в остаточной сети
+        }
+        if (used[edges[index].v] == timer) {
+            continue;
+        }
+        int x = dfs(edges[index].v, min(min_capacity, edges[index].get_capacity()));
+        if (x) { // нашли путь по которому можно пустить x потока
+            edges[index].flow += x;
+            edges[index ^ 1].flow -= x;
+            return x;
         }
     }
-    return true;
+    // не существует пути из v в T
+    return 0;
 }
 
-bool bpm(vector<vector<int>>& bpGraph, int u, vector<bool>& seen, vector<int>& matchR){
-    for (int v = 0; v < bpGraph[u].size(); v++){
-        if (bpGraph[u][v] && !seen[v]){
-            seen[v] = true;
-            if (matchR[v] < 0 || bpm(bpGraph, matchR[v], seen, matchR)){
-                matchR[v] = u;
-                return true;
-            }
-        }
+int main() {
+    int n, m;
+    cin >> n >> m >> S >> T;
+    for (int i = 0; i < m; ++i) {
+        int v, u, capacity;
+        cin >> v >> u >> capacity;
+        add_edge(v, u, capacity);
     }
-    return false;
-}
-
-int maxMatching(vector<vector<int>>& graph, int n, int m){
-    vector<int> matchR(m, -1); 
-    int result = 0; 
-
-    for (int u = 0; u < n; u++){
-        vector<bool> seen(m, false);
-        if (bpm(graph, u, seen, matchR))
-            result++;
+    while (dfs(S, INF)) {  // ищем увеличивающий путь
+        ++timer;
     }
-    return result;
-}
-
-int main(){
-    int n = 4; 
-    int m = 4; 
-    vector<vector<int>> graph(n, vector<int>(m, 0)); 
-
-    graph[0][1] = 1;
-    graph[0][2] = 1;
-    graph[1][2] = 1;
-    graph[2][3] = 1;
-
-    vector<int> colors(n, -1); 
-
-    if (isBipartite(graph, 0, colors)) {
-        cout << "Граф является двудольным." << endl;
-        cout << "Максимальное совпадение: " << maxMatching(graph, n, m) << endl;
-    } else {
-        cout << "Граф не является двудольным." << endl;
+    // увеличивающего пути нет, следовательно максимальный потока найден
+    int result = 0;
+    for (int index : graph[S]) {
+        result += edges[index].flow;
     }
-
+    cout << result << endl;
     return 0;
 }
